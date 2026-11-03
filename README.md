@@ -38,7 +38,9 @@ on extensions.gnome.org. `make uninstall` removes the installed copy.
 - The current default output is marked with a check.
 - Clicking an available output logs `three-labels: click on <label>` and then
   switches the default output.
-- `aggiorna` rescans the devices.
+- The device list refreshes by itself when sinks, cards, or the sound server
+  change (USB or Bluetooth headphones plugged in, card profile change).
+- `aggiorna` forces a rescan.
 
 ## Logs
 

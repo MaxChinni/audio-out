@@ -1,24 +1,27 @@
 # AGENTS.md
 
 ## Repository state
-- GNOME Shell extension `three-labels@max.local`, single extension, no git repo.
-- Sources live in `three-labels@max.local/`: `extension.js`, `audio.js`, `metadata.json`, `stylesheet.css`.
-- `Makefile` is the only task runner. No tests, lint, or typecheck exist; do not invent them.
+- GNOME Shell extension `three-labels@max.local`. Not a git repo.
+- Extension sources live in `three-labels@max.local/` (repo root is not the extension dir): `extension.js`, `audio.js`, `metadata.json`, `stylesheet.css`.
+- No tests, lint, or typecheck exist. `audio.js` mentions `tests/test-audio.js` in a comment; that file does not exist.
 
 ## Commands
-- `make install` copies the four sources to `~/.local/share/gnome-shell/extensions/three-labels@max.local`.
-- `make enable` / `make disable` toggle the extension; `make uninstall` removes the installed copy.
-- `make restart` runs `pkill -nx gnome-shell`; the user systemd unit restarts the shell.
-- `make pack` builds `three-labels@max.local.shell-extension.zip`. `stylesheet.css` is packed automatically; `audio.js` needs `--extra-source=audio.js`.
-- `make install` alone does not reload code: the shell caches modules, so always `make install && make restart`.
+- `make install` copies `SOURCES` to `~/.local/share/gnome-shell/extensions/three-labels@max.local`. `make uninstall` removes that dir.
+- `make enable` / `make disable` toggle the extension.
+- `make restart` runs `pkill -nx gnome-shell`; the systemd user unit respawns the shell.
+- `make pack` builds `three-labels@max.local.shell-extension.zip`; `stylesheet.css` and `metadata.json` are packed automatically, `audio.js` needs `--extra-source=audio.js`.
+- Deploy order: `make install && make restart`. The shell caches modules, so installing alone does not reload code.
+- New runtime files must be added to `SOURCES` in the `Makefile`, or `make install` and `make pack` will miss them.
 
 ## Environment
-- GNOME Shell 42 on X11, Ubuntu 22.04. Uses legacy imports (`imports.misc.extensionUtils`), not ESM.
-- The extension sets `LC_ALL=C` and `LANG=C` in `_init`: the Italian locale makes `pactl` emit `0,00` decimals, which breaks `JSON.parse`.
-- `pactl` JSON output written to `/tmp/opencode/` is only a probe artifact; `audio.js` is the real backend (`Audio.getState()`, `Audio.switchTo(output)`).
+- GNOME Shell 42, Ubuntu 22.04, X11. Uses legacy `imports.*` modules, not ESM/`Extension` class.
+- `extension.js` sets `LC_ALL=C` and `LANG=C` before touching audio: the Italian locale makes `pactl` emit `0,00` decimals, invalid JSON.
+- Stack: `extension.js` builds the menu and calls `Audio.getState()` / `Audio.switchTo(output)`; `audio.js` is the standalone `pactl` backend (no shell imports, keeps retry logic for truncated JSON).
 
 ## Gotchas
-- `pgrep -n gnome-shell` also matches `gnome-shell-calendar-server`; use `pgrep -nx` / `pkill -nx`.
-- Extension logs: `journalctl --user -u org.gnome.Shell@x11.service -f | grep three-labels`.
-- Custom style classes are `three-labels-active` and `dimmed`, defined in `stylesheet.css`; without that file they have no effect.
-- `/home/max/projects/three-labels` is an older flat copy of these files, not the source of truth.
+- Auto-refresh is event driven: `_startWatching()` runs `pactl subscribe` as a `Gio.Subprocess`, filters `Event '...' on (sink|card|server)`, debounces 300 ms, then calls `_refresh()`. It respawns the subscription 5 s after it dies; `destroy()` must stop it.
+- `_refresh()` is not reentrant: concurrent calls set `_refreshQueued` and rerun once after the current pass. Keep that guard when editing refresh logic.
+- Log prefixes differ: `three-labels:` from the menu, `sound-selector:` from `audio.js`. Use `journalctl --user -u org.gnome.Shell@x11.service -f | grep -E 'three-labels|sound-selector'`.
+- `pgrep -n gnome-shell` also matches `gnome-shell-calendar-server`; always use `pgrep -nx` / `pkill -nx`.
+- Custom style classes `three-labels-active` and `dimmed` only exist via `stylesheet.css`; keep that file installed.
+- `/home/max/projects/three-labels` is an older flat copy, not the source of truth.
