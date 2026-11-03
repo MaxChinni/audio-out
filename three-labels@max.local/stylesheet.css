@@ -1,0 +1,7 @@
+.three-labels-active {
+    font-weight: bold;
+}
+
+.dimmed {
+    color: rgba(255, 255, 255, 0.45);
+}

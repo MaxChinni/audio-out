@@ -1,0 +1,7 @@
+{
+  "uuid": "three-labels@max.local",
+  "name": "Three Labels",
+  "description": "Mostra tre etichette, un separatore e un controllo di aggiornamento.",
+  "shell-version": ["42"],
+  "version": 1
+}
