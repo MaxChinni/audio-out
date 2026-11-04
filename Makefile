@@ -1,4 +1,4 @@
-UUID    := three-labels@max.local
+UUID    := audio-out@max.local
 SRCDIR  := $(UUID)
 DESTDIR := $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 SOURCES := extension.js audio.js metadata.json stylesheet.css

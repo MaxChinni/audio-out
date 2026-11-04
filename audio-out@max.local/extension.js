@@ -9,12 +9,12 @@ const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Audio = Me.imports.audio;
 
-const UUID = 'three-labels@max.local';
+const UUID = 'audio-out@max.local';
 
-const ThreeLabelsIndicator = GObject.registerClass(
-class ThreeLabelsIndicator extends PanelMenu.Button {
+const AudioOutIndicator = GObject.registerClass(
+class AudioOutIndicator extends PanelMenu.Button {
     _init() {
-        super._init(0.0, 'Three Labels');
+        super._init(0.0, 'Audio Out');
 
         GLib.setenv('LC_ALL', 'C', true);
         GLib.setenv('LANG', 'C', true);
@@ -55,7 +55,7 @@ class ThreeLabelsIndicator extends PanelMenu.Button {
                 Gio.SubprocessFlags.STDOUT_PIPE);
         } catch (e) {
             this._eventProc = null;
-            log(`three-labels: impossibile avviare pactl subscribe: ${e.message}`);
+            log(`audio-out: impossibile avviare pactl subscribe: ${e.message}`);
             return;
         }
 
@@ -152,15 +152,15 @@ class ThreeLabelsIndicator extends PanelMenu.Button {
         for (const output of this._outputs) {
             const item = new PopupMenu.PopupMenuItem(output.label);
             if (output.available) {
-                item.add_style_class_name('three-labels-active');
+                item.add_style_class_name('audio-out-active');
                 item.setSensitive(true);
                 item.connect('activate', async () => {
-                    log(`three-labels: click on ${output.label}`);
+                    log(`audio-out: click on ${output.label}`);
                     try {
                         await Audio.switchTo(output);
                         await this._refresh();
                     } catch (e) {
-                        log(`three-labels: impossibile selezionare ${output.label}: ${e.message}`);
+                        log(`audio-out: impossibile selezionare ${output.label}: ${e.message}`);
                     }
                 });
             } else {
@@ -225,13 +225,13 @@ class ThreeLabelsIndicator extends PanelMenu.Button {
             }
             this._outputs = outputs.length ? outputs : this._outputs;
         } catch (e) {
-            log(`three-labels: errore lettura dispositivi: ${e.message}`);
+            log(`audio-out: errore lettura dispositivi: ${e.message}`);
         }
         this._buildMenu();
 
-        log(`three-labels: dispositivi di output rilevati (${this._outputs.length}):`);
+        log(`audio-out: dispositivi di output rilevati (${this._outputs.length}):`);
         for (const output of this._outputs) {
-            log(`three-labels:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''}`);
+            log(`audio-out:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''}`);
         }
     }
 });
@@ -242,7 +242,7 @@ function init() {
 }
 
 function enable() {
-    indicator = new ThreeLabelsIndicator();
+    indicator = new AudioOutIndicator();
     Main.panel.addToStatusArea(UUID, indicator, 0, 'right');
 }
 
