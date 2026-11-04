@@ -11,6 +11,22 @@ const Audio = Me.imports.audio;
 
 const UUID = 'audio-out@max.local';
 
+const ICONS = {
+    speaker: 'audio-speakers-symbolic',
+    headphones: 'audio-headphones-symbolic',
+    bluetooth: 'bluetooth-active-symbolic',
+    hdmi: 'video-display-symbolic',
+    other: 'audio-card-symbolic',
+};
+
+function iconForOutput(output) {
+    if (output.kind === 'bluetooth' ||
+        (output.sink || '').startsWith('bluez_output.') ||
+        (output.card || '').startsWith('bluez_card.'))
+        return ICONS.bluetooth;
+    return ICONS[output.kind] || ICONS.other;
+}
+
 const AudioOutIndicator = GObject.registerClass(
 class AudioOutIndicator extends PanelMenu.Button {
     _init() {
@@ -34,11 +50,11 @@ class AudioOutIndicator extends PanelMenu.Button {
             { label: 'label 3', available: true, active: false },
         ];
 
-        const icon = new St.Icon({
-            icon_name: 'utilities-terminal-symbolic',
+        this._icon = new St.Icon({
+            icon_name: ICONS.speaker,
             style_class: 'system-status-icon',
         });
-        this.add_child(icon);
+        this.add_child(this._icon);
 
         this._buildMenu();
         this._refresh();
@@ -151,6 +167,12 @@ class AudioOutIndicator extends PanelMenu.Button {
 
         for (const output of this._outputs) {
             const item = new PopupMenu.PopupMenuItem(output.label);
+            const icon = new St.Icon({
+                icon_name: iconForOutput(output),
+                style_class: 'popup-menu-icon',
+            });
+            item.insert_child_at_index(icon, 0);
+            item.label_actor = item.label;
             if (output.available) {
                 item.add_style_class_name('audio-out-active');
                 item.setSensitive(true);
@@ -227,11 +249,20 @@ class AudioOutIndicator extends PanelMenu.Button {
         } catch (e) {
             log(`audio-out: errore lettura dispositivi: ${e.message}`);
         }
+
+        const active = this._outputs.find(output => output.active);
+        const activeIcon = active ? iconForOutput(active) : ICONS.other;
+        if (this._icon.icon_name !== activeIcon) {
+            this._icon.icon_name = activeIcon;
+            log(`audio-out: icona pannello -> ${activeIcon}`);
+        }
+        this.accessible_name = `Audio Out: ${active ? active.label : 'nessuna uscita'}`;
+
         this._buildMenu();
 
         log(`audio-out: dispositivi di output rilevati (${this._outputs.length}):`);
         for (const output of this._outputs) {
-            log(`audio-out:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''}`);
+            log(`audio-out:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''} icon=${iconForOutput(output)}`);
         }
     }
 });

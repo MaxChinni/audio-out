@@ -22,6 +22,7 @@
 - Auto-refresh is event driven: `_startWatching()` runs `pactl subscribe` as a `Gio.Subprocess`, filters `Event '...' on (sink|card|server)`, debounces 300 ms, then calls `_refresh()`. It respawns the subscription 5 s after it dies; `destroy()` must stop it.
 - `_refresh()` is not reentrant: concurrent calls set `_refreshQueued` and rerun once after the current pass. Keep that guard when editing refresh logic.
 - Log prefixes differ: `audio-out:` from the menu, `sound-selector:` from `audio.js`. Use `journalctl --user -u org.gnome.Shell@x11.service -f | grep -E 'audio-out|sound-selector'`.
+- Icons come from Adwaita symbolic set via the `ICONS` map in `extension.js`; Bluetooth is detected from `kind === 'bluetooth'` or `bluez_output.`/`bluez_card.` names. Adwaita 42 has no earbuds icon, so Bluetooth uses `bluetooth-active-symbolic` and wired headphones use `audio-headphones-symbolic`.
 - `pgrep -n gnome-shell` also matches `gnome-shell-calendar-server`; always use `pgrep -nx` / `pkill -nx`.
 - Custom style classes `audio-out-active` and `dimmed` only exist via `stylesheet.css`; keep that file installed.
 - `/home/max/projects/three-labels` is an older flat copy, not the source of truth.
