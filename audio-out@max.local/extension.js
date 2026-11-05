@@ -44,6 +44,7 @@ function iconForOutput(output) {
 }
 
 const VOLUME_STEP = 5;
+const MIDDLE_BUTTON = 2;
 const MUTED_ICON = themedIcon('audio-volume-muted-symbolic');
 
 function runCapture(argv) {
@@ -88,6 +89,8 @@ class AudioOutIndicator extends PanelMenu.Button {
         this._pendingVolume = null;
         this._volumeApplyId = 0;
         this._volumeSyncId = 0;
+        this._volumeSyncDebounceId = 0;
+        this._volumeSyncing = false;
         this._muted = false;
         this._preMuteVolume = 0;
         this._muteChangedAt = 0;
@@ -116,7 +119,7 @@ class AudioOutIndicator extends PanelMenu.Button {
     vfunc_event(event) {
         // Middle button toggles mute; PanelMenu.Button opens the menu on any press.
         if (event.type() === Clutter.EventType.BUTTON_PRESS &&
-            event.get_button() === 2) {
+            event.get_button() === MIDDLE_BUTTON) {
             this._toggleMute();
             return Clutter.EVENT_STOP;
         }
@@ -206,6 +209,7 @@ class AudioOutIndicator extends PanelMenu.Button {
         this._pendingVolume = target;
         if (this._muted) {
             this._muted = false;
+            this._muteChangedAt = Date.now();
             this._setMute(false);
         }
         this._updatePanelIcon();
@@ -253,11 +257,14 @@ class AudioOutIndicator extends PanelMenu.Button {
             const active = this._outputs.find(output => output.active);
             icon = active ? iconForOutput(active) : ICONS.other;
         }
-        const level = muted ? 0 : this._volumeLevel;
+        const level = muted ? 0 : Math.max(0, Math.min(1, this._volumeLevel ?? 0));
         Main.osdWindowManager.show(-1, icon, null, level, 1);
     }
 
     async _syncVolume() {
+        if (this._volumeSyncing)
+            return;
+        this._volumeSyncing = true;
         try {
             const [text, muteText] = await Promise.all([
                 runCapture(['pactl', 'get-sink-volume', '@DEFAULT_SINK@']),
@@ -275,6 +282,8 @@ class AudioOutIndicator extends PanelMenu.Button {
             this._updatePanelIcon();
         } catch (e) {
             // Volume read is best effort.
+        } finally {
+            this._volumeSyncing = false;
         }
     }
 
@@ -289,6 +298,7 @@ class AudioOutIndicator extends PanelMenu.Button {
         } catch (e) {
             this._eventProc = null;
             log(`audio-out: impossibile avviare pactl subscribe: ${e.message}`);
+            this._scheduleRespawn();
             return;
         }
 
@@ -303,11 +313,18 @@ class AudioOutIndicator extends PanelMenu.Button {
             this._eventProc = null;
             this._eventStream = null;
             this._eventCancellable = null;
-            this._respawnId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
-                this._respawnId = 0;
-                this._startWatching();
-                return GLib.SOURCE_REMOVE;
-            });
+            this._scheduleRespawn();
+        });
+    }
+
+    _scheduleRespawn() {
+        if (this._destroyed || this._respawnId)
+            return;
+
+        this._respawnId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+            this._respawnId = 0;
+            this._startWatching();
+            return GLib.SOURCE_REMOVE;
         });
     }
 
@@ -327,8 +344,16 @@ class AudioOutIndicator extends PanelMenu.Button {
             if (line === null)
                 return;
 
-            if (/^Event '(new|remove|change)' on (sink|card|server) /.test(line))
-                this._queueRefresh();
+            const event = /^Event '(new|remove|change)' on (sink|card|server) /.exec(line);
+            if (event) {
+                const [type, object] = [event[1], event[2]];
+                // A sink "change" is usually just volume or mute: resync the
+                // level instead of rebuilding the whole device list.
+                if (object === 'sink' && type === 'change')
+                    this._queueVolumeSync();
+                else
+                    this._queueRefresh();
+            }
 
             if (this._eventStream === stream)
                 this._readEventLine();
@@ -342,6 +367,19 @@ class AudioOutIndicator extends PanelMenu.Button {
         this._refreshDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
             this._refreshDebounceId = 0;
             this._refresh();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _queueVolumeSync() {
+        if (this._volumeSyncDebounceId)
+            GLib.source_remove(this._volumeSyncDebounceId);
+
+        this._volumeSyncDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+            this._volumeSyncDebounceId = 0;
+            // A pending write or an already scheduled resync covers this event.
+            if (!this._volumeApplyId && !this._volumeSyncId)
+                this._syncVolume();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -382,6 +420,10 @@ class AudioOutIndicator extends PanelMenu.Button {
         if (this._volumeSyncId) {
             GLib.source_remove(this._volumeSyncId);
             this._volumeSyncId = 0;
+        }
+        if (this._volumeSyncDebounceId) {
+            GLib.source_remove(this._volumeSyncDebounceId);
+            this._volumeSyncDebounceId = 0;
         }
         this._stopWatching();
         super.destroy();

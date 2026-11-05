@@ -48,6 +48,8 @@ on extensions.gnome.org. `make uninstall` removes the installed copy.
   switches the default output.
 - The device list refreshes by itself when sinks, cards, or the sound server
   change (USB or Bluetooth headphones plugged in, card profile change).
+- Volume and mute changed outside the extension (media keys, another mixer)
+  are picked up by the panel icon and the next wheel step.
 - `aggiorna` forces a rescan.
 
 ## Logs

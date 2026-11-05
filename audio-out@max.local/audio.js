@@ -35,24 +35,18 @@ function warn(message) {
         print(message);
 }
 
-/* Run a subprocess, capture stdout+stderr into a temp file via /bin/sh.
+/* Run a subprocess and capture stdout.
  *
- * Using STDOUT_PIPE with async communication races against fd flushing under
- * gnome-shell load and occasionally truncates pactl JSON around ~431 bytes
- * ("expected double-quoted property name at line 1 column 431"). The temp-file
- * path avoids both races and any gnome-shell stdout suppression that breaks
- * STDOUT_FILENO inheritance. */
+ * stderr is silenced: opening a second pipe risks a deadlock when pactl emits
+ * lots of diagnostics. Piping stdout can still race against fd flushing under
+ * gnome-shell load and truncate the JSON around ~431 bytes, so callers use
+ * fetchJson(), which reruns the command when parsing fails. */
 function run(argv) {
     return new Promise((resolve, reject) => {
         let proc;
         try {
-            // Pipe stdout only. stderr carries diagnostic noise and opening a
-            // second pipe risks deadlock when pactl emits lots of errors.
-            // Piping stdio can race against fd flushing and occasionally
-            // truncate pactl JSON at column ~431 — parseWithRetry recovers most
-            // of these transient truncations.
             proc = Gio.Subprocess.new(argv,
-                Gio.SubprocessFlags.STDOUT_PIPE);
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
         } catch (e) {
             reject(e);
             return;
@@ -223,7 +217,7 @@ function buildOutputs(cards, sinks, defaultSink) {
     return outputs;
 }
 
-function buildState(cardsJson, sinksJson, defaultSink, drmConnected) {
+function buildState(cardsJson, sinksJson, defaultSink) {
     const cards = normalizeCards(cardsJson);
     const sinks = normalizeSinks(sinksJson);
     return {
@@ -231,34 +225,7 @@ function buildState(cardsJson, sinksJson, defaultSink, drmConnected) {
         sinks,
         defaultSink,
         outputs: buildOutputs(cards, sinks, defaultSink),
-        drmConnected: !!drmConnected,
     };
-}
-
-/* True when the kernel reports an HDMI or DisplayPort connector as connected.
- * E-ports (internal laptop panel) are ignored. */
-function drmHdmiConnected() {
-    try {
-        const dir = Gio.File.new_for_path('/sys/class/drm');
-        const iter = dir.enumerate_children('standard::name',
-            Gio.FileQueryInfoFlags.NONE, null);
-        let info;
-        while ((info = iter.next_file(null)) !== null) {
-            const match = /^card\d+-(.+)$/.exec(info.get_name());
-            if (!match || !/^(HDMI|DP)-/.test(match[1]))
-                continue;
-            const path = `/sys/class/drm/${info.get_name()}/status`;
-            const [, bytes] = GLib.file_get_contents(path);
-            if (new TextDecoder().decode(bytes).trim() === 'connected') {
-                iter.close(null);
-                return true;
-            }
-        }
-        iter.close(null);
-    } catch (e) {
-        // sysfs is not available on every system; pactl data is the fallback.
-    }
-    return false;
 }
 
 async function getDefaultSink() {
@@ -271,156 +238,36 @@ async function getDefaultSink() {
     }
 }
 
-async function parseWithRetry(text) {
-    // Tolerate transient pipe truncation under gnome-shell load: pactl writes
-    // plenty of bytes but the async stdout reader occasionally loses ~431
-    // bytes around column 431 ("expected double-quoted property name at line
-    // 1 column 431"). Retrying a few times usually recovers the full payload.
-    for (let attempt = 0; attempt < 10; attempt++) {
+/* Run a pactl JSON command and parse it, rerunning the command on failure.
+ * Parsing the same truncated payload again cannot recover, so the retry has
+ * to fetch it again. */
+async function fetchJson(argv, maxAttempts = 3) {
+    let lastError = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-            return JSON.parse(text);
+            return JSON.parse(await run(argv));
         } catch (e) {
-            if (attempt === 9) {
-                warn(`sound-selector: pactl output length: ${text.length}`);
-                warn(`sound-selector: JSON parse error: ${e.message}`);
-            }
-            await sleep(200);
+            lastError = e;
+            if (attempt < maxAttempts - 1)
+                await sleep(200);
         }
     }
-    throw new Error('Invalid audio server output');
+    warn(`sound-selector: cannot parse ${argv.join(' ')}: ${lastError.message}`);
+    throw lastError;
 }
 
 async function getState() {
     try {
         const [cardsJson, sinksJson, defaultSink] = await Promise.all([
-            runWithRetry([...PACTL, 'list', 'cards'], 2).then(t => parseWithRetry(t)),
-            runWithRetry([...PACTL, 'list', 'sinks'], 2).then(t => parseWithRetry(t)),
+            fetchJson([...PACTL, 'list', 'cards']),
+            fetchJson([...PACTL, 'list', 'sinks']),
             getDefaultSink(),
         ]);
-        return buildState(cardsJson, sinksJson, defaultSink, drmHdmiConnected());
+        return buildState(cardsJson, sinksJson, defaultSink);
     } catch (e) {
-        warn(`sound-selector: primary parse failed: ${e.message}`);
-        try {
-            const [cardsText, sinksText] = await Promise.all([
-                run([...PACTL, 'list', 'cards']),
-                run([...PACTL, 'list', 'sinks']),
-            ]);
-            const cardsJson = await parseWithRetry(cardsText);
-            const sinksJson = await parseWithRetry(sinksText);
-            return buildState(cardsJson || [], sinksJson || [], getDefaultSink(), drmHdmiConnected());
-        } catch (e2) {
-            return {
-                cards: [],
-                sinks: [],
-                defaultSink: getDefaultSink(),
-                outputs: [],
-                drmConnected: false,
-            };
-        }
+        warn(`sound-selector: cannot read audio state: ${e.message}`);
+        return { cards: [], sinks: [], defaultSink: null, outputs: [] };
     }
-}
-
-/* HDMI presence.
- *
- * Trust ordering, weakest first:
- *   1. HDMI port availability reported by the sound server ("available")
- *   2. an HDMI-type sink already active/running on that card
- *   3. kernel DRM connector state ("connected"), used when the server
- *      reports the port as unknown
- *
- * The returned `port` always carries the owning `card` name so it can be
- * handed straight to `outputForPort`.
- */
-function hdmiPresence(state) {
-    const candidates = [];
-    for (const card of state.cards) {
-        for (const port of card.ports) {
-            if (PORT_KINDS[port.type] === 'hdmi')
-                candidates.push({ cardName: card.name, port });
-        }
-    }
-    if (!candidates.length)
-        return { present: false, port: null };
-
-    candidates.sort((a, b) => b.port.priority - a.port.priority);
-
-    let present, port;
-
-    // Port explicitly available.
-    const available = candidates.find(candidate =>
-        candidate.port.availability === 'available');
-    if (available) {
-        port = Object.assign({}, available.port, { card: available.cardName });
-        present = true;
-    } else if (state.sinks.some(sink =>
-        sink.card === (available ? available.cardName : null))) {
-        // An HDMI-type sink is running: the display is effectively connected
-        // even if the port itself is reported unavailable.
-        const first = candidates[0];
-        port = Object.assign({}, first.port, { card: first.cardName });
-        present = true;
-    } else if (state.drmConnected &&
-        candidates.some(candidate => candidate.port.availability === 'unknown')) {
-        const first = candidates[0];
-        port = Object.assign({}, first.port, { card: first.cardName });
-        present = true;
-    } else {
-        const first = candidates[0];
-        port = Object.assign({}, first.port, { card: first.cardName });
-        present = false;
-    }
-
-    return { present, port };
-}
-
-function outputForPort(outputs, cardName, portName) {
-    return outputs.find(output => output.card === cardName && output.port === portName) || null;
-}
-
-function selectHdmiOutput(state, presence) {
-    if (presence.port) {
-        const output = outputForPort(state.outputs, presence.port.card, presence.port.name);
-        if (output)
-            return output;
-    }
-    return state.outputs
-        .filter(output => output.kind === 'hdmi' && output.available)
-        .sort((a, b) => b.priority - a.priority)[0] || null;
-}
-
-function selectSpeakerOutput(state) {
-    const speaker = state.outputs
-        .filter(output => output.kind === 'speaker' && output.available)
-        .sort((a, b) => b.priority - a.priority)[0];
-    if (speaker)
-        return speaker;
-
-    return state.outputs
-        .filter(output => output.available && output.kind !== 'hdmi' &&
-            output.kind !== 'bluetooth')
-        .sort((a, b) => b.priority - a.priority)[0] || null;
-}
-
-/* Decide whether an automatic switch is needed.
- *
- * Returns the output to switch to, or null when nothing should change.
- * HDMI wins whenever it is connected; speakers are restored only when the
- * current output was HDMI (a manually selected Bluetooth sink is left alone).
- */
-function planAutoSwitch(state) {
-    const current = state.outputs.find(output => output.active) || null;
-    const presence = hdmiPresence(state);
-
-    if (presence.present) {
-        if (current && current.kind === 'hdmi')
-            return null;
-        return selectHdmiOutput(state, presence);
-    }
-
-    if (!current || current.kind === 'hdmi')
-        return selectSpeakerOutput(state);
-
-    return null;
 }
 
 async function moveStreams(sinkName) {
