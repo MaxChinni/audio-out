@@ -26,7 +26,7 @@ restart:
 	pkill -nx gnome-shell
 
 pack:
-	gnome-extensions pack "$(SRCDIR)" --extra-source=audio.js --extra-source=icons --force
+	gnome-extensions pack "$(SRCDIR)" --extra-source=audio.js --extra-source=icons --extra-source=../LICENSE --force
 
 clean:
 	rm -f "$(UUID).shell-extension.zip"
