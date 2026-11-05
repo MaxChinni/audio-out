@@ -53,7 +53,7 @@ home directory.
 1. Clone the repository and enter its directory:
 
    ```sh
-   git clone http://gitea.fritz.box:3000/max/audio-out.git
+   git clone <repository-url>
    cd audio-out
    ```
 

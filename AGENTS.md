@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Repository state
-- GNOME Shell extension `audio-out@mx17.net`, git repo on `master` (origin `http://gitea.fritz.box:3000/max/audio-out.git`). `*.shell-extension.zip` is gitignored.
+- GNOME Shell extension `audio-out@mx17.net`, git repo on `master`. `*.shell-extension.zip` is gitignored.
 - Sources live in `audio-out@mx17.net/` (repo root is not the extension dir): `extension.js`, `audio.js`, `metadata.json`, `stylesheet.css`, `icons/`.
 - Root `LICENSE` is GPL-2.0-or-later, copyright Massimiliano Chinni. Keep the project GPL-2.0-or-later compatible; `make pack` embeds that root file.
 - No tests, lint, or typecheck exist. The `audio.js` header mentions `tests/test-audio.js`; that file does not exist, do not go looking for it.
