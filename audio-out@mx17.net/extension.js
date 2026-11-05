@@ -96,11 +96,7 @@ class AudioOutIndicator extends PanelMenu.Button {
         this._preMuteVolume = 0;
         this._muteChangedAt = 0;
 
-        this._outputs = [
-            { label: 'label 1', available: true, active: false },
-            { label: 'label 2', available: true, active: false },
-            { label: 'label 3', available: true, active: false },
-        ];
+        this._outputs = [];
 
         this._panelIcon = null;
         this._icon = new St.Icon({
@@ -440,7 +436,6 @@ class AudioOutIndicator extends PanelMenu.Button {
                 style_class: 'popup-menu-icon',
             });
             item.insert_child_at_index(icon, 0);
-            item.label_actor = item.label;
             if (output.available) {
                 item.add_style_class_name('audio-out-active');
                 item.setSensitive(true);
