@@ -8,6 +8,7 @@ const PopupMenu = imports.ui.popupMenu;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Audio = Me.imports.audio;
+const _ = ExtensionUtils.gettext;
 
 const UUID = 'audio-out@mx17.net';
 
@@ -71,7 +72,7 @@ function runCapture(argv) {
 const AudioOutIndicator = GObject.registerClass(
 class AudioOutIndicator extends PanelMenu.Button {
     _init() {
-        super._init(0.0, 'Audio Out');
+        super._init(0.0, _('Audio Out'));
 
         GLib.setenv('LC_ALL', 'C', true);
         GLib.setenv('LANG', 'C', true);
@@ -464,7 +465,7 @@ class AudioOutIndicator extends PanelMenu.Button {
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        const refreshItem = new PopupMenu.PopupImageMenuItem('Refresh', 'view-refresh-symbolic');
+        const refreshItem = new PopupMenu.PopupImageMenuItem(_('Refresh'), 'view-refresh-symbolic');
         refreshItem.connect('activate', () => this._refresh());
         this.menu.addMenuItem(refreshItem);
     }
@@ -518,7 +519,8 @@ class AudioOutIndicator extends PanelMenu.Button {
         }
 
         const active = this._outputs.find(output => output.active);
-        this.accessible_name = `Audio Out: ${active ? active.label : 'no output'}`;
+        const label = active ? active.label : _('no output');
+        this.accessible_name = _('Audio Out: %s').replace('%s', label);
         this._updatePanelIcon();
 
         if (!this._volumeApplyId && !this._volumeSyncId)
@@ -536,6 +538,7 @@ class AudioOutIndicator extends PanelMenu.Button {
 let indicator = null;
 
 function init() {
+    ExtensionUtils.initTranslations();
 }
 
 function enable() {

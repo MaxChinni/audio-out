@@ -3,5 +3,6 @@
   "name": "Audio Out",
   "description": "Shows the active audio output and the available devices, with a check mark on the current one.",
   "shell-version": ["42"],
+  "gettext-domain": "audio-out",
   "version": 1
 }

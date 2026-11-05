@@ -32,6 +32,8 @@ panel icon.
   another mixer).
 - Clicking an available device switches to it; unavailable devices are dimmed
   and disabled.
+- English and Italian interface, with gettext translations. Adding another
+  language takes one `po/<code>.po` file.
 
 ## Compatibility
 
@@ -64,11 +66,14 @@ home directory.
    ```
 
    This copies `extension.js`, `audio.js`, `metadata.json`, `stylesheet.css`,
-   and `icons/` to:
+   `icons/`, and the compiled `locale/` translations to:
 
    ```text
    ~/.local/share/gnome-shell/extensions/audio-out@mx17.net/
    ```
+
+   Building the translations requires `gettext` (`msgfmt`, `msgmerge`,
+   `msgattrib`, `xgettext`). `make install` compiles them automatically.
 
 3. Reload GNOME Shell:
 
@@ -133,13 +138,17 @@ On Wayland, log out and back in afterwards.
 
 | Target | Effect |
 | --- | --- |
-| `make install` | Copy the extension sources and `icons/` to the user extension directory |
+| `make install` | Compile translations and copy sources, `icons/`, and `locale/` to the user extension directory |
 | `make uninstall` | Remove the installed extension directory |
 | `make enable` | Enable `audio-out@mx17.net` |
 | `make disable` | Disable `audio-out@mx17.net` |
 | `make restart` | Restart GNOME Shell on X11; on Wayland print a logout hint and exit 0 |
+| `make translations` | Compile `po/*.po` into `audio-out@mx17.net/locale/` |
+| `make check-translations` | Fail if a supported language has untranslated or fuzzy messages |
+| `make pot` | Regenerate the `po/audio-out.pot` translation template |
+| `make update-po` | Regenerate the template and merge new strings into every `po/LINGUAS` language |
 | `make pack` | Build `audio-out@mx17.net.shell-extension.zip`, including the root `LICENSE` |
-| `make clean` | Delete the built ZIP |
+| `make clean` | Delete the built ZIP and the generated `locale/` tree |
 | `make` or `make all` | Same as `make pack` |
 
 ## Usage
@@ -161,10 +170,17 @@ dimmed and disabled.
 audio-out@mx17.net/          extension sources, installed and packed as-is
 ├── extension.js             menu, panel icon, volume, mute, event watcher
 ├── audio.js                 standalone pactl backend (no GNOME Shell imports)
-├── metadata.json            UUID, name, GNOME Shell version
+├── metadata.json            UUID, name, GNOME Shell version, gettext domain
 ├── stylesheet.css           active/dimmed menu styles
-└── icons/                   custom speaker icon and store icon
-Makefile                     install, pack, enable, restart, clean helpers
+├── icons/                   custom speaker icon and store icon
+└── locale/                  compiled translations (generated, not committed)
+po/                          gettext template and translations
+├── LINGUAS                  languages compiled and packaged
+├── POTFILES.in              source files scanned for translatable strings
+├── audio-out.pot            translation template
+├── en.po                    English translations
+└── it.po                    Italian translations
+Makefile                     install, pack, enable, restart, translation helpers
 ```
 
 ## Development
@@ -187,6 +203,42 @@ gnome-extensions info audio-out@mx17.net | grep State
 journalctl --user -f | grep audio-out
 ```
 
+## Localization
+
+The menu and the accessible panel name use gettext. English and Italian are
+included. `po/LINGUAS` lists the supported languages, `po/POTFILES.in` lists the
+source files scanned for translatable strings, and `metadata.json` names the
+gettext domain.
+
+Every user-visible string must be wrapped in `_()`:
+
+```js
+const _ = ExtensionUtils.gettext;
+
+new PopupMenu.PopupImageMenuItem(_('Refresh'), 'view-refresh-symbolic');
+```
+
+`init()` calls `ExtensionUtils.initTranslations()`, which loads the `.mo` files
+from `locale/` next to the installed extension. Message catalogs outside `po/`
+are not used.
+
+When adding or changing a string:
+
+```sh
+make update-po          # regenerate the POT and merge it into every po/*.po
+# translate the new or changed msgid in every language listed in po/LINGUAS
+make check-translations # fail if any language still has untranslated/fuzzy entries
+```
+
+`make install` and `make pack` run the translation checks and compile the
+catalogs automatically, so an incomplete language stops the build instead of
+shipping a partial interface.
+
+To add a language, create `po/<code>.po` with the gettext header, add `<code>`
+to `po/LINGUAS`, run `make update-po`, and translate every message. Names that
+come from PulseAudio or PipeWire are already localized by the sound server and
+are not part of these catalogs.
+
 ## How it works
 
 `extension.js` builds the menu and owns the panel icon, volume, and mute
@@ -205,7 +257,8 @@ Both `extension.js` and `audio.js` log with the `audio-out:` prefix.
 
 `make pack` builds `audio-out@mx17.net.shell-extension.zip` for distribution.
 `icons/extension-icon.png` is a 128×128, transparent-background extension icon
-included in the package.
+included in the package. The package includes the compiled `locale/` catalogs
+for every language in `po/LINGUAS`.
 
 ## License
 

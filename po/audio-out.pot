@@ -1,0 +1,35 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Audio Out package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Audio Out 1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-05 15:56+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: audio-out@mx17.net/extension.js:75
+msgid "Audio Out"
+msgstr ""
+
+#: audio-out@mx17.net/extension.js:468
+msgid "Refresh"
+msgstr ""
+
+#: audio-out@mx17.net/extension.js:522
+msgid "no output"
+msgstr ""
+
+#: audio-out@mx17.net/extension.js:523
+#, javascript-format
+msgid "Audio Out: %s"
+msgstr ""

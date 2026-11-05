@@ -1,0 +1,34 @@
+# English translations for the Audio Out extension.
+# Copyright (C) 2026 Massimiliano Chinni
+# This file is distributed under the same license as the Audio Out package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: audio-out\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-05 15:55+0100\n"
+"PO-Revision-Date: 2026-11-05 15:55+0100\n"
+"Last-Translator: Massimiliano Chinni\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: audio-out@mx17.net/extension.js:75
+msgid "Audio Out"
+msgstr "Audio Out"
+
+#: audio-out@mx17.net/extension.js:468
+msgid "Refresh"
+msgstr "Refresh"
+
+#: audio-out@mx17.net/extension.js:522
+msgid "no output"
+msgstr "no output"
+
+#: audio-out@mx17.net/extension.js:523
+#, javascript-format
+msgid "Audio Out: %s"
+msgstr "Audio Out: %s"
