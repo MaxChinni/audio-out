@@ -271,3 +271,15 @@ later (GPL-2.0-or-later). See [LICENSE](LICENSE) for the full text.
 You may use, study, share, and modify the code under the terms of that license.
 If you distribute a modified version, keep the copyright notice and the license,
 and make the source available under the same terms.
+
+## Donations
+
+If you appreciate this project and want to support development, you can make a
+donation via Bitcoin to the following address:
+
+```
+bc1q6nn4hncvk0n2zkps96pzar89nx9kx0kxl6war4
+```
+
+Donations are anonymous and help cover the costs of maintaining the repository
+and developing new features. Thank you!
