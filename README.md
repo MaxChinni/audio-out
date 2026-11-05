@@ -43,23 +43,104 @@ Tested on Ubuntu 22.04 with GNOME Shell 42.9 on X11.
 
 ## Installation
 
+### From source
+
+The repository contains the extension sources in `audio-out@mx17.net/` and a
+`Makefile` that installs, enables, restarts, and packages them. Run every target
+as your desktop user, without `sudo`: the install target writes only inside your
+home directory.
+
+1. Clone the repository and enter its directory:
+
+   ```sh
+   git clone http://gitea.fritz.box:3000/max/audio-out.git
+   cd audio-out
+   ```
+
+2. Install the extension files:
+
+   ```sh
+   make install
+   ```
+
+   This copies `extension.js`, `audio.js`, `metadata.json`, `stylesheet.css`,
+   and `icons/` to:
+
+   ```text
+   ~/.local/share/gnome-shell/extensions/audio-out@mx17.net/
+   ```
+
+3. Reload GNOME Shell:
+
+   ```sh
+   make restart
+   ```
+
+   On X11 this runs `pkill -nx gnome-shell`; the systemd user unit restarts the
+   shell. On Wayland it does not kill the shell: it prints a reminder and exits
+   successfully. Log out and back in to reload Wayland.
+
+4. Wait about 10 seconds after the restart, then enable the extension:
+
+   ```sh
+   make enable
+   ```
+
+   Run `make enable` only after the shell has started again. Enabling earlier
+   fails because the shell has not seen the new extension directory yet.
+
+5. Verify that the extension is loaded:
+
+   ```sh
+   gnome-extensions info audio-out@mx17.net | grep State
+   ```
+
+   Expected result:
+
+   ```text
+   State: ENABLED
+   ```
+
+   The panel icon appears in the top bar. If it does not, check the logs:
+
+   ```sh
+   journalctl --user -f | grep -E 'audio-out|sound-selector'
+   ```
+
+### Updating
+
+After changing the sources, install them again and reload the shell:
+
 ```sh
-git clone http://gitea.fritz.box:3000/max/audio-out.git
-cd audio-out
-make install     # copy sources to ~/.local/share/gnome-shell/extensions/audio-out@mx17.net
-make restart     # restart GNOME Shell (X11 only)
-make enable      # enable the extension
+make install
+make restart     # on Wayland: make restart prints a hint, then log out and back in
 ```
 
-Wait about 10 seconds after restarting the shell before enabling the extension:
-the shell must see the new extension directory first. On Wayland, log out and
-back in instead of running `make restart`.
+The extension stays enabled across the reload. Run `make enable` again only if
+it was disabled.
 
-To remove the installed copy:
+### Uninstall
 
 ```sh
+make disable
 make uninstall
 ```
+
+`make uninstall` removes `~/.local/share/gnome-shell/extensions/audio-out@mx17.net/`.
+On Wayland, log out and back in afterwards.
+
+### Makefile targets
+
+| Target | Effect |
+| --- | --- |
+| `make install` | Copy the extension sources and `icons/` to the user extension directory |
+| `make uninstall` | Remove the installed extension directory |
+| `make enable` | Enable `audio-out@mx17.net` |
+| `make disable` | Disable `audio-out@mx17.net` |
+| `make restart` | Restart GNOME Shell on X11; on Wayland print a logout hint and exit 0 |
+| `make pack` | Build `audio-out@mx17.net.shell-extension.zip`, including the root `LICENSE` |
+| `make clean` | Delete the built ZIP |
+| `make` or `make all` | Same as `make pack` |
 
 ## Usage
 
@@ -90,7 +171,7 @@ Makefile                     install, pack, enable, restart, clean helpers
 
 ```sh
 make install     # install to the user extension directory
-make restart     # restart GNOME Shell (X11 only)
+make restart     # restart GNOME Shell on X11; no-op with logout hint on Wayland
 make pack        # build audio-out@mx17.net.shell-extension.zip
 make clean       # remove the built ZIP
 ```
@@ -103,7 +184,7 @@ Useful checks:
 
 ```sh
 gnome-extensions info audio-out@mx17.net | grep State
-journalctl --user -u org.gnome.Shell@x11.service -f | grep -E 'audio-out|sound-selector'
+journalctl --user -f | grep -E 'audio-out|sound-selector'
 ```
 
 ## How it works

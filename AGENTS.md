@@ -9,10 +9,10 @@
 
 ## Commands
 - `make install` copies `SOURCES` plus `EXTRA` (`icons/`) to `~/.local/share/gnome-shell/extensions/audio-out@mx17.net`; `make uninstall` removes that dir.
-- `make restart` runs `pkill -nx gnome-shell`; the systemd user unit respawns the shell.
-- Deploy with `make install && make restart`: the shell caches modules, so installing alone does not reload code.
-- Fresh install or new UUID: run `make install`, `make restart`, wait ~10 s, then `make enable`. Enabling before the restart fails because the shell has not seen the new extension directory.
-- After restart verify: `gnome-extensions info audio-out@mx17.net | grep State` and `journalctl --user -u org.gnome.Shell@x11.service -f | grep -E 'audio-out|sound-selector'`.
+- `make restart` runs `pkill -nx gnome-shell` only when `XDG_SESSION_TYPE=x11`; on Wayland it prints a logout hint and exits 0. Never kill the shell on Wayland: it ends the session.
+- Fresh install or new UUID: run `make install`, restart the shell on X11 (log out and back in on Wayland), wait ~10 s, then `make enable`. Enabling before the restart fails because the shell has not seen the new extension directory.
+- The shell caches modules: installing alone does not reload code. On Wayland, only logout/login reloads it; `make restart` is a safe no-op there.
+- After restart verify: `gnome-extensions info audio-out@mx17.net | grep State` and `journalctl --user -f | grep -E 'audio-out|sound-selector'`.
 - `make pack` builds `audio-out@mx17.net.shell-extension.zip`; `stylesheet.css` and `metadata.json` are automatic, `audio.js`, `icons/`, and the root `LICENSE` need `--extra-source` (already in the Makefile).
 - New runtime files must be added to `SOURCES`, or to `EXTRA` for directories, or `make install` and `make pack` will miss them.
 

@@ -23,7 +23,12 @@ disable:
 	gnome-extensions disable "$(UUID)"
 
 restart:
-	pkill -nx gnome-shell
+	@if [ "$$XDG_SESSION_TYPE" != "x11" ]; then \
+		echo "GNOME Shell can be restarted in place only on X11; this session is '$${XDG_SESSION_TYPE:-unknown}'."; \
+		echo "Log out and back in to reload the extension, then run 'make enable'."; \
+	else \
+		pkill -nx gnome-shell; \
+	fi
 
 pack:
 	gnome-extensions pack "$(SRCDIR)" --extra-source=audio.js --extra-source=icons --extra-source=../LICENSE --force
