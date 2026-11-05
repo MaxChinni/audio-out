@@ -73,7 +73,7 @@ clean:
 	rm -f "$(UUID).shell-extension.zip"
 	rm -rf "$(LOCALEDIR)"
 
-release: pack
+release: update-po check-translations pack
 	@echo "Release ZIP pronto: audio-out@mx17.net.shell-extension.zip"
 	@echo "Per pubblicare su GitHub:"
 	@echo "  1. Carica il file su una nuova release via web interface o"
