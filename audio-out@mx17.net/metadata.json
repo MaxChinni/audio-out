@@ -1,5 +1,5 @@
 {
-  "uuid": "audio-out@max.local",
+  "uuid": "audio-out@mx17.net",
   "name": "Audio Out",
   "description": "Mostra l'output audio attivo e i dispositivi disponibili, con la spunta sul corrente.",
   "shell-version": ["42"],

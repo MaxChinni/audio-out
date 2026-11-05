@@ -9,7 +9,7 @@ const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Audio = Me.imports.audio;
 
-const UUID = 'audio-out@max.local';
+const UUID = 'audio-out@mx17.net';
 
 function themedIcon(name) {
     return Gio.ThemedIcon.new(name);

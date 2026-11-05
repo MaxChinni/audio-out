@@ -11,7 +11,7 @@ switches the default output when an available device is clicked.
 ## Layout
 
 ```
-audio-out@max.local/   extension sources (packed and installed as-is)
+audio-out@mx17.net/   extension sources (packed and installed as-is)
 Makefile                  install / pack / enable / restart helpers
 ```
 
@@ -21,12 +21,12 @@ card profiles. `extension.js` builds the menu.
 ## Install
 
 ```sh
-make install     # copy sources to ~/.local/share/gnome-shell/extensions/audio-out@max.local
+make install     # copy sources to ~/.local/share/gnome-shell/extensions/audio-out@mx17.net
 make enable      # enable the extension
 make restart     # restart GNOME Shell (X11 only)
 ```
 
-`make pack` builds `audio-out@max.local.shell-extension.zip` for publication
+`make pack` builds `audio-out@mx17.net.shell-extension.zip` for publication
 on extensions.gnome.org. `make uninstall` removes the installed copy.
 
 ## Behaviour
@@ -51,6 +51,15 @@ on extensions.gnome.org. `make uninstall` removes the installed copy.
 - Volume and mute changed outside the extension (media keys, another mixer)
   are picked up by the panel icon and the next wheel step.
 - `aggiorna` forces a rescan.
+
+## Publishing
+
+`icons/extension-icon.png` (128x128, transparent background) is the icon for
+the extension's page on extensions.gnome.org. GNOME Shell 42 ignores extension
+icons in `metadata.json`, and the site does not read the ZIP: the icon must be
+uploaded from the extension's page on extensions.gnome.org. The same file is
+what the site's "Installed extensions" list shows once the extension is
+published.
 
 ## Logs
 

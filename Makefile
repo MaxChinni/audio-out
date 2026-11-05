@@ -1,4 +1,4 @@
-UUID    := audio-out@max.local
+UUID    := audio-out@mx17.net
 SRCDIR  := $(UUID)
 DESTDIR := $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 SOURCES := extension.js audio.js metadata.json stylesheet.css
