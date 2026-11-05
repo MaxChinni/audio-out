@@ -143,6 +143,7 @@ On Wayland, log out and back in afterwards.
 | `make enable` | Enable `audio-out@mx17.net` |
 | `make disable` | Disable `audio-out@mx17.net` |
 | `make restart` | Restart GNOME Shell on X11; on Wayland print a logout hint and exit 0 |
+| `make release` | Builds the release ZIP with `make pack` and stampa istruzioni per caricarlo su GitHub (web o `gh release create`) |
 | `make translations` | Compile `po/*.po` into `audio-out@mx17.net/locale/` |
 | `make check-translations` | Fail if a supported language has untranslated or fuzzy messages |
 | `make pot` | Regenerate the `po/audio-out.pot` translation template |

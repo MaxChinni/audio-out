@@ -5,10 +5,11 @@ DOMAIN    := audio-out
 PODIR     := po
 LOCALEDIR := $(SRCDIR)/locale
 LINGUAS   := $(shell cat $(PODIR)/LINGUAS 2>/dev/null)
+VERSION   ?= 1.0.0
 SOURCES   := extension.js audio.js metadata.json stylesheet.css
 EXTRA     := icons locale
 
-.PHONY: all install uninstall enable disable restart pack clean pot update-po translations check-translations
+.PHONY: all install uninstall enable disable restart pack clean pot update-po translations check-translations release
 
 all: pack
 
@@ -71,3 +72,13 @@ pack: translations
 clean:
 	rm -f "$(UUID).shell-extension.zip"
 	rm -rf "$(LOCALEDIR)"
+
+release: pack
+	@echo "Release ZIP pronto: audio-out@mx17.net.shell-extension.zip"
+	@echo "Per pubblicare su GitHub:"
+	@echo "  1. Carica il file su una nuova release via web interface o"
+	@echo "     `gh release create v$(VERSION) audio-out@mx17.net.shell-extension.zip`"
+	@echo "  2. Oppure usa il comando seguente (se gh installato):"
+	@echo "     gh release create v$(VERSION) audio-out@mx17.net.shell-extension.zip --notes \"$(shell head -1 CHANGELOG 2>/dev/null || echo 'Nessun changelog')\""
+	@echo "Nota: il tag git v$(VERSION) non viene creato automaticamente: crea manualmente con"
+	@echo "  git tag v$(VERSION) && git push --follow-tags se vuoi associarlo alla release."
