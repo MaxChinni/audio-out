@@ -24,7 +24,7 @@ function iconLabel(icon) {
         return icon.get_names()[0];
     if (icon.get_file)
         return icon.get_file().get_basename();
-    return 'icona';
+    return 'icon';
 }
 
 const ICONS = {
@@ -164,7 +164,7 @@ class AudioOutIndicator extends PanelMenu.Button {
                 ['pactl', 'set-sink-mute', '@DEFAULT_SINK@', muted ? '1' : '0'],
                 Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
         } catch (e) {
-            log(`audio-out: impossibile cambiare il muto: ${e.message}`);
+            log(`audio-out: cannot change mute: ${e.message}`);
         }
     }
 
@@ -174,7 +174,7 @@ class AudioOutIndicator extends PanelMenu.Button {
                 ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', `${percent}%`],
                 Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
         } catch (e) {
-            log(`audio-out: impossibile regolare il volume: ${e.message}`);
+            log(`audio-out: cannot change volume: ${e.message}`);
         }
     }
 
@@ -245,7 +245,7 @@ class AudioOutIndicator extends PanelMenu.Button {
             return;
         this._panelIcon = icon;
         this._icon.gicon = icon;
-        log(`audio-out: icona pannello -> ${iconLabel(icon)}`);
+        log(`audio-out: panel icon -> ${iconLabel(icon)}`);
     }
 
     _showVolumeOsd() {
@@ -297,7 +297,7 @@ class AudioOutIndicator extends PanelMenu.Button {
                 Gio.SubprocessFlags.STDOUT_PIPE);
         } catch (e) {
             this._eventProc = null;
-            log(`audio-out: impossibile avviare pactl subscribe: ${e.message}`);
+            log(`audio-out: cannot start pactl subscribe: ${e.message}`);
             this._scheduleRespawn();
             return;
         }
@@ -449,7 +449,7 @@ class AudioOutIndicator extends PanelMenu.Button {
                         await Audio.switchTo(output);
                         await this._refresh();
                     } catch (e) {
-                        log(`audio-out: impossibile selezionare ${output.label}: ${e.message}`);
+                        log(`audio-out: cannot select ${output.label}: ${e.message}`);
                     }
                 });
             } else {
@@ -464,7 +464,7 @@ class AudioOutIndicator extends PanelMenu.Button {
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        const refreshItem = new PopupMenu.PopupImageMenuItem('aggiorna', 'view-refresh-symbolic');
+        const refreshItem = new PopupMenu.PopupImageMenuItem('Refresh', 'view-refresh-symbolic');
         refreshItem.connect('activate', () => this._refresh());
         this.menu.addMenuItem(refreshItem);
     }
@@ -514,11 +514,11 @@ class AudioOutIndicator extends PanelMenu.Button {
             }
             this._outputs = outputs.length ? outputs : this._outputs;
         } catch (e) {
-            log(`audio-out: errore lettura dispositivi: ${e.message}`);
+            log(`audio-out: error reading output devices: ${e.message}`);
         }
 
         const active = this._outputs.find(output => output.active);
-        this.accessible_name = `Audio Out: ${active ? active.label : 'nessuna uscita'}`;
+        this.accessible_name = `Audio Out: ${active ? active.label : 'no output'}`;
         this._updatePanelIcon();
 
         if (!this._volumeApplyId && !this._volumeSyncId)
@@ -526,9 +526,9 @@ class AudioOutIndicator extends PanelMenu.Button {
 
         this._buildMenu();
 
-        log(`audio-out: dispositivi di output rilevati (${this._outputs.length}):`);
+        log(`audio-out: output devices detected (${this._outputs.length}):`);
         for (const output of this._outputs) {
-            log(`audio-out:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''} icon=${iconLabel(iconForOutput(output))}`);
+            log(`audio-out:   - ${output.label} [${output.available ? 'available' : 'unavailable'}]${output.active ? ' (active)' : ''} icon=${iconLabel(iconForOutput(output))}`);
         }
     }
 });

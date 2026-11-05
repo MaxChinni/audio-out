@@ -150,7 +150,7 @@ On Wayland, log out and back in afterwards.
 | Click an available device | Make it the default output |
 | Scroll over the panel icon | Volume up/down in 5% steps |
 | Middle-click the panel icon | Toggle mute |
-| Click `aggiorna` | Force a rescan of output devices |
+| Click `Refresh` | Force a rescan of output devices |
 
 Devices reported by the card but not currently connected stay in the menu,
 dimmed and disabled.

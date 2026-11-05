@@ -1,7 +1,7 @@
 {
   "uuid": "audio-out@mx17.net",
   "name": "Audio Out",
-  "description": "Mostra l'output audio attivo e i dispositivi disponibili, con la spunta sul corrente.",
+  "description": "Shows the active audio output and the available devices, with a check mark on the current one.",
   "shell-version": ["42"],
   "version": 1
 }
