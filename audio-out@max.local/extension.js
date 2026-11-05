@@ -1,5 +1,5 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
-const {Gio, GLib, GObject, St} = imports.gi;
+const {Clutter, Gio, GLib, GObject, St} = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
@@ -11,12 +11,28 @@ const Audio = Me.imports.audio;
 
 const UUID = 'audio-out@max.local';
 
+function themedIcon(name) {
+    return Gio.ThemedIcon.new(name);
+}
+
+function fileIcon(path) {
+    return Gio.FileIcon.new(Gio.File.new_for_path(`${Me.path}/${path}`));
+}
+
+function iconLabel(icon) {
+    if (icon.get_names)
+        return icon.get_names()[0];
+    if (icon.get_file)
+        return icon.get_file().get_basename();
+    return 'icona';
+}
+
 const ICONS = {
-    speaker: 'audio-speakers-symbolic',
-    headphones: 'audio-headphones-symbolic',
-    bluetooth: 'bluetooth-active-symbolic',
-    hdmi: 'video-display-symbolic',
-    other: 'audio-card-symbolic',
+    speaker: fileIcon('icons/speaker-hifi-symbolic.svg'),
+    headphones: themedIcon('audio-headphones-symbolic'),
+    bluetooth: themedIcon('bluetooth-active-symbolic'),
+    hdmi: themedIcon('video-display-symbolic'),
+    other: themedIcon('audio-card-symbolic'),
 };
 
 function iconForOutput(output) {
@@ -25,6 +41,30 @@ function iconForOutput(output) {
         (output.card || '').startsWith('bluez_card.'))
         return ICONS.bluetooth;
     return ICONS[output.kind] || ICONS.other;
+}
+
+const VOLUME_STEP = 5;
+const MUTED_ICON = themedIcon('audio-volume-muted-symbolic');
+
+function runCapture(argv) {
+    return new Promise((resolve, reject) => {
+        let proc;
+        try {
+            proc = Gio.Subprocess.new(argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+        } catch (e) {
+            reject(e);
+            return;
+        }
+        proc.communicate_utf8_async(null, null, (p, res) => {
+            try {
+                const [, stdout] = p.communicate_utf8_finish(res);
+                resolve(stdout || '');
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
 }
 
 const AudioOutIndicator = GObject.registerClass(
@@ -43,6 +83,14 @@ class AudioOutIndicator extends PanelMenu.Button {
         this._eventStream = null;
         this._eventCancellable = null;
         this._destroyed = false;
+        this._scrollAccum = 0;
+        this._volumeLevel = null;
+        this._pendingVolume = null;
+        this._volumeApplyId = 0;
+        this._volumeSyncId = 0;
+        this._muted = false;
+        this._preMuteVolume = 0;
+        this._muteChangedAt = 0;
 
         this._outputs = [
             { label: 'label 1', available: true, active: false },
@@ -50,15 +98,184 @@ class AudioOutIndicator extends PanelMenu.Button {
             { label: 'label 3', available: true, active: false },
         ];
 
+        this._panelIcon = null;
         this._icon = new St.Icon({
-            icon_name: ICONS.speaker,
+            gicon: ICONS.speaker,
             style_class: 'system-status-icon',
         });
         this.add_child(this._icon);
 
         this._buildMenu();
         this._refresh();
+        this._syncVolume();
         this._startWatching();
+
+        this.connect('scroll-event', (actor, event) => this._onScroll(event));
+    }
+
+    vfunc_event(event) {
+        // Middle button toggles mute; PanelMenu.Button opens the menu on any press.
+        if (event.type() === Clutter.EventType.BUTTON_PRESS &&
+            event.get_button() === 2) {
+            this._toggleMute();
+            return Clutter.EVENT_STOP;
+        }
+        return super.vfunc_event(event);
+    }
+
+    _toggleMute() {
+        if (this._muted)
+            this._unmute();
+        else
+            this._mute();
+    }
+
+    _mute() {
+        const level = Math.round((this._volumeLevel ?? 0.5) * 100);
+        if (level > 0)
+            this._preMuteVolume = level;
+        this._muted = true;
+        this._muteChangedAt = Date.now();
+        this._setMute(true);
+        this._updatePanelIcon();
+        this._showVolumeOsd();
+        log('audio-out: mute on');
+    }
+
+    _unmute() {
+        const level = this._preMuteVolume > 0 ? this._preMuteVolume : 50;
+        this._volumeLevel = level / 100;
+        this._muted = false;
+        this._muteChangedAt = Date.now();
+        // Set the volume first, then unmute, so the old level does not play.
+        this._setVolume(level);
+        this._setMute(false);
+        this._updatePanelIcon();
+        this._showVolumeOsd();
+        log(`audio-out: mute off, volume ${level}%`);
+    }
+
+    _setMute(muted) {
+        try {
+            Gio.Subprocess.new(
+                ['pactl', 'set-sink-mute', '@DEFAULT_SINK@', muted ? '1' : '0'],
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+        } catch (e) {
+            log(`audio-out: impossibile cambiare il muto: ${e.message}`);
+        }
+    }
+
+    _setVolume(percent) {
+        try {
+            Gio.Subprocess.new(
+                ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', `${percent}%`],
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+        } catch (e) {
+            log(`audio-out: impossibile regolare il volume: ${e.message}`);
+        }
+    }
+
+    _onScroll(event) {
+        const direction = event.get_scroll_direction();
+        let steps = 0;
+
+        if (direction === Clutter.ScrollDirection.SMOOTH) {
+            let [, dy] = event.get_scroll_delta();
+            this._scrollAccum += dy;
+            steps = Math.trunc(this._scrollAccum);
+            this._scrollAccum -= steps;
+            steps = -steps;
+        } else if (direction === Clutter.ScrollDirection.UP) {
+            steps = 1;
+        } else if (direction === Clutter.ScrollDirection.DOWN) {
+            steps = -1;
+        } else {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        if (steps !== 0)
+            this._changeVolume(steps * VOLUME_STEP);
+
+        return Clutter.EVENT_STOP;
+    }
+
+    _changeVolume(delta) {
+        const current = Math.round((this._volumeLevel ?? 0.5) * 100);
+        const target = Math.max(0, Math.min(100, current + delta));
+        this._volumeLevel = target / 100;
+        this._pendingVolume = target;
+        if (this._muted) {
+            this._muted = false;
+            this._setMute(false);
+        }
+        this._updatePanelIcon();
+        this._showVolumeOsd();
+
+        if (this._volumeApplyId)
+            return;
+
+        this._volumeApplyId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => {
+            this._volumeApplyId = 0;
+            this._setVolume(this._pendingVolume);
+
+            if (this._volumeSyncId)
+                GLib.source_remove(this._volumeSyncId);
+            this._volumeSyncId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 700, () => {
+                this._volumeSyncId = 0;
+                this._syncVolume();
+                return GLib.SOURCE_REMOVE;
+            });
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _updatePanelIcon() {
+        let icon;
+        if (this._muted || this._volumeLevel === 0)
+            icon = MUTED_ICON;
+        else {
+            const active = this._outputs.find(output => output.active);
+            icon = active ? iconForOutput(active) : ICONS.other;
+        }
+        if (this._panelIcon === icon)
+            return;
+        this._panelIcon = icon;
+        this._icon.gicon = icon;
+        log(`audio-out: icona pannello -> ${iconLabel(icon)}`);
+    }
+
+    _showVolumeOsd() {
+        const muted = this._muted || this._volumeLevel === 0;
+        let icon;
+        if (muted)
+            icon = MUTED_ICON;
+        else {
+            const active = this._outputs.find(output => output.active);
+            icon = active ? iconForOutput(active) : ICONS.other;
+        }
+        const level = muted ? 0 : this._volumeLevel;
+        Main.osdWindowManager.show(-1, icon, null, level, 1);
+    }
+
+    async _syncVolume() {
+        try {
+            const [text, muteText] = await Promise.all([
+                runCapture(['pactl', 'get-sink-volume', '@DEFAULT_SINK@']),
+                runCapture(['pactl', 'get-sink-mute', '@DEFAULT_SINK@']),
+            ]);
+            const match = text.match(/(\d+)%/);
+            const muted = /Mute:\s*yes/i.test(muteText);
+            if (match)
+                this._volumeLevel = Math.min(parseInt(match[1], 10), 100) / 100;
+            if (muted && !this._muted && this._volumeLevel > 0)
+                this._preMuteVolume = Math.round(this._volumeLevel * 100);
+            // Ignore a stale read while a local mute toggle is still applying.
+            if (Date.now() - this._muteChangedAt > 1000)
+                this._muted = muted;
+            this._updatePanelIcon();
+        } catch (e) {
+            // Volume read is best effort.
+        }
     }
 
     _startWatching() {
@@ -158,6 +375,14 @@ class AudioOutIndicator extends PanelMenu.Button {
 
     destroy() {
         this._destroyed = true;
+        if (this._volumeApplyId) {
+            GLib.source_remove(this._volumeApplyId);
+            this._volumeApplyId = 0;
+        }
+        if (this._volumeSyncId) {
+            GLib.source_remove(this._volumeSyncId);
+            this._volumeSyncId = 0;
+        }
         this._stopWatching();
         super.destroy();
     }
@@ -168,7 +393,7 @@ class AudioOutIndicator extends PanelMenu.Button {
         for (const output of this._outputs) {
             const item = new PopupMenu.PopupMenuItem(output.label);
             const icon = new St.Icon({
-                icon_name: iconForOutput(output),
+                gicon: iconForOutput(output),
                 style_class: 'popup-menu-icon',
             });
             item.insert_child_at_index(icon, 0);
@@ -251,18 +476,17 @@ class AudioOutIndicator extends PanelMenu.Button {
         }
 
         const active = this._outputs.find(output => output.active);
-        const activeIcon = active ? iconForOutput(active) : ICONS.other;
-        if (this._icon.icon_name !== activeIcon) {
-            this._icon.icon_name = activeIcon;
-            log(`audio-out: icona pannello -> ${activeIcon}`);
-        }
         this.accessible_name = `Audio Out: ${active ? active.label : 'nessuna uscita'}`;
+        this._updatePanelIcon();
+
+        if (!this._volumeApplyId && !this._volumeSyncId)
+            this._syncVolume();
 
         this._buildMenu();
 
         log(`audio-out: dispositivi di output rilevati (${this._outputs.length}):`);
         for (const output of this._outputs) {
-            log(`audio-out:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''} icon=${iconForOutput(output)}`);
+            log(`audio-out:   - ${output.label} [${output.available ? 'disponibile' : 'non disponibile'}]${output.active ? ' (attivo)' : ''} icon=${iconLabel(iconForOutput(output))}`);
         }
     }
 });

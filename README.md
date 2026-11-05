@@ -33,9 +33,14 @@ on extensions.gnome.org. `make uninstall` removes the installed copy.
 
 - Menu items list every output port reported by the sound cards, including
   unavailable ones (HDMI, Bluetooth, S/PDIF).
-- Each item shows a device icon: stereo speakers, headphones, Bluetooth,
+- Each item shows a device icon: stereo hi-fi speakers (bundled
+  `icons/speaker-hifi-symbolic.svg`), headphones, Bluetooth,
   HDMI/DisplayPort, or a generic audio card.
-- The panel icon follows the active output.
+- The panel icon follows the active output. Scroll the wheel over it to change
+  the volume in 5% steps (up louder, down quieter), with a GNOME OSD.
+- At volume 0 the panel and OSD icons become the muted-speaker symbol.
+- Middle-click the panel icon to toggle mute. Unmuting restores the volume
+  used before the mute.
 - Available devices use `audio-out-active`; unavailable ones use `dimmed`
   and are not clickable.
 - The current default output is marked with a check.
