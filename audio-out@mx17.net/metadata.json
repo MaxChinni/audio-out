@@ -1,7 +1,7 @@
 {
   "uuid": "audio-out@mx17.net",
   "name": "Audio Out",
-  "description": "Shows the active audio output and the available devices, with a check mark on the current one.",
+  "description": "Switch the default audio output from the top panel icon and control volume and mute. It lists every output port reported by the sound cards, including unavailable ones, and marks the current default with a check.",
   "shell-version": ["42"],
   "gettext-domain": "audio-out",
   "version": 1
