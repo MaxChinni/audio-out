@@ -104,7 +104,7 @@ home directory.
    The panel icon appears in the top bar. If it does not, check the logs:
 
    ```sh
-   journalctl --user -f | grep -E 'audio-out|sound-selector'
+   journalctl --user -f | grep audio-out
    ```
 
 ### Updating
@@ -184,7 +184,7 @@ Useful checks:
 
 ```sh
 gnome-extensions info audio-out@mx17.net | grep State
-journalctl --user -f | grep -E 'audio-out|sound-selector'
+journalctl --user -f | grep audio-out
 ```
 
 ## How it works
@@ -199,10 +199,7 @@ subprocess open and refreshes when sinks, cards, or the sound server change. The
 extension sets `LC_ALL=C` and `LANG=C` before calling `pactl`, because localized
 decimal separators produce JSON that `JSON.parse` rejects.
 
-Log prefixes:
-
-- `audio-out:` from `extension.js`
-- `sound-selector:` from `audio.js`
+Both `extension.js` and `audio.js` log with the `audio-out:` prefix.
 
 ## Packaging
 

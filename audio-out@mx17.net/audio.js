@@ -1,5 +1,5 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
-/* Audio backend for the Sound Selector extension.
+/* Audio backend for the Audio Out extension.
  *
  * Talks to PulseAudio / PipeWire through `pactl` (JSON output, pactl >= 15).
  * This module deliberately has no gnome-shell imports so it can be exercised
@@ -252,7 +252,7 @@ async function fetchJson(argv, maxAttempts = 3) {
                 await sleep(200);
         }
     }
-    warn(`sound-selector: cannot parse ${argv.join(' ')}: ${lastError.message}`);
+    warn(`audio-out: cannot parse ${argv.join(' ')}: ${lastError.message}`);
     throw lastError;
 }
 
@@ -265,7 +265,7 @@ async function getState() {
         ]);
         return buildState(cardsJson, sinksJson, defaultSink);
     } catch (e) {
-        warn(`sound-selector: cannot read audio state: ${e.message}`);
+        warn(`audio-out: cannot read audio state: ${e.message}`);
         return { cards: [], sinks: [], defaultSink: null, outputs: [] };
     }
 }
@@ -280,7 +280,7 @@ async function moveStreams(sinkName) {
         try {
             await run(['pactl', 'move-sink-input', id, sinkName]);
         } catch (e) {
-            warn(`sound-selector: cannot move stream ${id}: ${e.message}`);
+            warn(`audio-out: cannot move stream ${id}: ${e.message}`);
         }
     }
 }
@@ -332,7 +332,7 @@ async function switchTo(output) {
         try {
             await run(['pactl', 'set-sink-port', sink.name, output.port]);
         } catch (e) {
-            warn(`sound-selector: cannot select port ${output.port}: ${e.message}`);
+            warn(`audio-out: cannot select port ${output.port}: ${e.message}`);
         }
     }
 
