@@ -230,14 +230,15 @@ class AudioOutIndicator extends PanelMenu.Button {
         });
     }
 
-    _updatePanelIcon() {
-        let icon;
+    _currentIcon() {
         if (this._muted || this._volumeLevel === 0)
-            icon = MUTED_ICON;
-        else {
-            const active = this._outputs.find(output => output.active);
-            icon = active ? iconForOutput(active) : ICONS.other;
-        }
+            return MUTED_ICON;
+        const active = this._outputs.find(output => output.active);
+        return active ? iconForOutput(active) : ICONS.other;
+    }
+
+    _updatePanelIcon() {
+        const icon = this._currentIcon();
         if (this._panelIcon === icon)
             return;
         this._panelIcon = icon;
@@ -247,13 +248,7 @@ class AudioOutIndicator extends PanelMenu.Button {
 
     _showVolumeOsd() {
         const muted = this._muted || this._volumeLevel === 0;
-        let icon;
-        if (muted)
-            icon = MUTED_ICON;
-        else {
-            const active = this._outputs.find(output => output.active);
-            icon = active ? iconForOutput(active) : ICONS.other;
-        }
+        const icon = this._currentIcon();
         const level = muted ? 0 : Math.max(0, Math.min(1, this._volumeLevel ?? 0));
         Main.osdWindowManager.show(-1, icon, null, level, 1);
     }
@@ -486,7 +481,7 @@ class AudioOutIndicator extends PanelMenu.Button {
     async _refreshOutputs() {
         try {
             const state = await Audio.getState();
-            const rawOutputs = (state.outputs || []).filter(output =>
+            const rawOutputs = state.outputs.filter(output =>
                 !/microphone/i.test(output.label || ''));
             const byLabel = new Map();
             const outputs = [];

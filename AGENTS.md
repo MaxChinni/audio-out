@@ -4,7 +4,7 @@
 - GNOME Shell extension `audio-out@mx17.net`, git repo on `master`. `*.shell-extension.zip` is gitignored.
 - Sources live in `audio-out@mx17.net/` (repo root is not the extension dir): `extension.js`, `audio.js`, `metadata.json`, `stylesheet.css`, `icons/`. Gettext sources live in `po/`; `audio-out@mx17.net/locale/` is generated and gitignored.
 - Root `LICENSE` is GPL-2.0-or-later, copyright Massimiliano Chinni. Keep the project GPL-2.0-or-later compatible; `make pack` embeds that root file.
-- No tests, lint, or typecheck exist. The `audio.js` header mentions `tests/test-audio.js`; that file does not exist, do not go looking for it.
+- No tests, lint, or typecheck exist.
 - The README's AI disclosure and human credit are intentional: do not remove them. The README must not name the extension store or claim a publication status.
 
 ## Commands

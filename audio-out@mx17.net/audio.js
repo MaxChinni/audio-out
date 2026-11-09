@@ -2,8 +2,8 @@
 /* Audio backend for the Audio Out extension.
  *
  * Talks to PulseAudio / PipeWire through `pactl` (JSON output, pactl >= 15).
- * This module deliberately has no gnome-shell imports so it can be exercised
- * with plain gjs: see tests/test-audio.js.
+ * This module deliberately has no gnome-shell imports so it can be loaded
+ * from plain gjs.
  */
 
 const {Gio, GLib} = imports.gi;
@@ -107,13 +107,10 @@ function cardNameForSink(sinkName) {
 function normalizeCards(cardsJson) {
     return (cardsJson || []).map(card => ({
         name: card.name,
-        description: card.properties?.['device.description'] || card.name,
         activeProfile: card.active_profile,
         profiles: Object.entries(card.profiles || {}).map(([name, profile]) => ({
             name,
-            description: profile.description,
             sinks: profile.sinks,
-            sources: profile.sources,
             priority: profile.priority,
             available: profile.available,
         })),
@@ -167,10 +164,8 @@ function buildOutputs(cards, sinks, defaultSink) {
                 usedSinks.add(sink.name);
 
             outputs.push({
-                id: `${card.name}|${port.name}`,
                 kind,
                 label: port.description,
-                cardLabel: card.description,
                 card: card.name,
                 port: port.name,
                 profile: profile.name,
@@ -189,10 +184,8 @@ function buildOutputs(cards, sinks, defaultSink) {
         const isBluetooth = sink.name.startsWith('bluez_output.') ||
             (sink.card || '').startsWith('bluez_card.');
         outputs.push({
-            id: `sink|${sink.name}`,
             kind: isBluetooth ? 'bluetooth' : 'other',
             label: sink.description || sink.name,
-            cardLabel: '',
             card: null,
             port: null,
             profile: null,
@@ -220,12 +213,7 @@ function buildOutputs(cards, sinks, defaultSink) {
 function buildState(cardsJson, sinksJson, defaultSink) {
     const cards = normalizeCards(cardsJson);
     const sinks = normalizeSinks(sinksJson);
-    return {
-        cards,
-        sinks,
-        defaultSink,
-        outputs: buildOutputs(cards, sinks, defaultSink),
-    };
+    return { outputs: buildOutputs(cards, sinks, defaultSink) };
 }
 
 async function getDefaultSink() {
@@ -266,7 +254,7 @@ async function getState() {
         return buildState(cardsJson, sinksJson, defaultSink);
     } catch (e) {
         warn(`audio-out: cannot read audio state: ${e.message}`);
-        return { cards: [], sinks: [], defaultSink: null, outputs: [] };
+        return { outputs: [] };
     }
 }
 
